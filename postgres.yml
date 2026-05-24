@@ -1,0 +1,97 @@
+- name: CyberWatch Stack - PostgreSQL + Automation
+  hosts: all
+  become: yes
+
+  vars:
+    db_name: cyberwatch
+    db_user: cyberuser
+    db_password: cyberpass
+
+  tasks:
+
+    # =========================
+    # 🔄 UPDATE SYSTEM
+    # =========================
+    - name: Update APT cache
+      apt:
+        update_cache: yes
+
+    # =========================
+    # 🗄 INSTALL POSTGRESQL
+    # =========================
+    - name: Install PostgreSQL and dependencies
+      apt:
+        name:
+          - postgresql
+          - postgresql-contrib
+          - python3-psycopg2
+        state: present
+
+    - name: Start PostgreSQL service
+      service:
+        name: postgresql
+        state: started
+        enabled: yes
+
+    # =========================
+    # 🧱 DATABASE SETUP
+    # =========================
+    - name: Create database
+      become_user: postgres
+      postgresql_db:
+        name: "{{ db_name }}"
+        state: present
+
+    - name: Create PostgreSQL user
+      become_user: postgres
+      postgresql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        role_attr_flags: CREATEDB,LOGIN
+
+    - name: Grant privileges on database
+      become_user: postgres
+      postgresql_privs:
+        db: "{{ db_name }}"
+        role: "{{ db_user }}"
+        type: database
+        privs: ALL
+
+    - name: Grant privileges on schema public
+      become_user: postgres
+      postgresql_privs:
+        db: "{{ db_name }}"
+        role: "{{ db_user }}"
+        type: schema
+        objs: public
+        privs: ALL
+
+    # =========================
+    # 📊 PERFORMANCE INDEX
+    # =========================
+    - name: Create index on cve_id
+      become_user: postgres
+      postgresql_query:
+        db: "{{ db_name }}"
+        query: "CREATE INDEX IF NOT EXISTS idx_cve_id ON vulnerabilities(cve_id);"
+
+    # =========================
+    # ⏰ CRON AUTOMATION
+    # =========================
+    - name: Add CyberWatch CVE ingestion cron
+      cron:
+        name: "CyberWatch CVE ingestion"
+        user: root
+        minute: "*/10"
+        job: "/root/ansible/cyber_watch/venv/bin/python /root/ansible/cyber_watch/cyber_watch.py >> /var/log/cyberwatch.log 2>&1"
+
+    # =========================
+    # 📊 CHECK STATUS
+    # =========================
+    - name: Check PostgreSQL status
+      command: systemctl status postgresql
+      register: pg_status
+
+    - name: Show PostgreSQL status
+      debug:
+        var: pg_status.stdout
