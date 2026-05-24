@@ -1,0 +1,34 @@
+version: "3.8"
+
+services:
+
+  db:
+    image: postgres:15
+    container_name: cyberwatch-db
+    restart: always
+    environment:
+      POSTGRES_DB: cyberwatch
+      POSTGRES_USER: cyberuser
+      POSTGRES_PASSWORD: cyberpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-soc
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    depends_on:
+      - db
+    volumes:
+      - grafana-data:/var/lib/grafana
+
+volumes:
+  pgdata:
+  grafana-data:
