@@ -7,7 +7,7 @@ on:
 
 jobs:
   sonar:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted   # 👈 IMPORTANT (ou ubuntu-latest si Sonar est public)
 
     steps:
       - name: Checkout code
@@ -24,10 +24,12 @@ jobs:
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v2
+        env:
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
             -Dsonar.projectKey=cyberwatch
+            -Dsonar.projectName=CyberWatch SOC
             -Dsonar.sources=.
-            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }}
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+            -Dsonar.exclusions=venv/**,__pycache__/**,**/*.pyc
